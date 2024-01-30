@@ -1,0 +1,59 @@
+# Podman-compose file for control bus tech (logging & visualization)
+# Tech stack: ElasticSearch, Kibana, and OpenTelemetry Collector
+# Execute with: podman-compose -f ./control-bus.compose.yml up
+version: '3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.3
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - elasticnet
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.9.3
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    networks:
+      - elasticnet
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:7.9.3
+    depends_on:
+      - elasticsearch
+    ports:
+      - "8200:8200"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - KIBANA_URL=http://kibana:5601
+    volumes:
+      - ./apm-server.yml:/usr/share/apm-server/apm-server.yml
+    networks:
+      - elasticnet
+  opentelemetry-collector:
+    image: otel/opentelemetry-collector-contrib:0.9.0
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317" # gRPC receiver port
+      - "55681:55681" # HTTP receiver port for traces
+    depends_on:
+      - elasticsearch
+    networks:
+      - elasticnet
+
+networks:
+  elasticnet:
+    driver: bridge
+
+volumes:
+  elasticsearch-data:
+    driver: local
