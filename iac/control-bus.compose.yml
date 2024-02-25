@@ -125,7 +125,7 @@ services:
       - SERVER_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
       - ELASTIC_APM_SECRET_TOKEN=${APM_SERVER_TOKEN}
     volumes:
-      - ./kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./configs/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
       - certs:/usr/share/kibana/config/certs
     networks:
       - elasticnet
@@ -156,7 +156,7 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_APM_LOG_LEVEL=trace
     volumes:
-      - ./apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+      - ./configs/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
     networks:
       - elasticnet
 
@@ -173,8 +173,8 @@ services:
       - ELASTIC_USERNAME=${ELASTIC_USERNAME}
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
     volumes:
-      - ./logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - ./logstash.pipeline.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./configs/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./configs/logstash.pipeline.conf:/usr/share/logstash/pipeline/logstash.conf
       - certs:/etc/logstash/certs
     ports:
       - "12201:12201/udp"
