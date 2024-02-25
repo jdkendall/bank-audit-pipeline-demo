@@ -1,0 +1,5 @@
+xpack.management:
+  elasticsearch:
+    hosts: ${ELASTIC_HOST}
+    username: ${ELASTIC_USERNAME}
+    password: ${ELASTIC_PASSWORD}

@@ -1,11 +1,20 @@
 apm-server:
   host: "0.0.0.0:8200"
+  secret_token: ${ELASTIC_APM_SECRET_TOKEN}
+  kibana:
+    enabled: true
+
+monitoring.enabled: false
+http.enabled: true
 
 output.elasticsearch:
-  hosts: ["elasticsearch:9200"]
+  ssl.verification_mode: none
+  hosts: ["${ELASTIC_HOST}"]
+  username: ${ELASTIC_USERNAME}
+  password: ${ELASTIC_PASSWORD}
 
 setup.kibana:
-  host: "kibana:5601"
+  host: "https://kibana:5601"
 
 logging.level: info
 logging.to_files: false

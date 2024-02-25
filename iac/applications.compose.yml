@@ -1,0 +1,107 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:latest
+    hostname: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: bankaudit
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - elasticnet
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - elasticnet
+
+  bankaudit-processor:
+    image: jdkendall/bankaudit-processor-default:1.0.0-SNAPSHOT
+    hostname: bankaudit-processor-0
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASS}
+      - OTEL_ENDPOINT=http://apm-server:8200
+      - OTEL_HEADERS=Authorization=Bearer ${APM_SERVER_TOKEN}
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=12201
+      - AUDIT_DB_URL=postgresql://postgres:5432/bankaudit
+      - AUDIT_DB_USER=${POSTGRES_USER}
+      - AUDIT_DB_PASS=${POSTGRES_PASS}
+      - PROCESSOR_ID=0
+    networks:
+      - elasticnet
+
+  bankaudit-api:
+    image: jdkendall/bankaudit-api-default:1.0.0-SNAPSHOT
+    hostname: bankaudit-api-0
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASS}
+      - OTEL_ENDPOINT=http://apm-server:8200
+      - OTEL_HEADERS=Authorization=Bearer ${APM_SERVER_TOKEN}
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=12201
+      - AUDIT_DB_URL=postgresql://postgres:5432/bankaudit
+      - AUDIT_DB_USER=${POSTGRES_USER}
+      - AUDIT_DB_PASS=${POSTGRES_PASS}
+      - PROCESSOR_ID=0
+    ports:
+      - "8080:8080"
+    networks:
+      - elasticnet
+
+  bankaudit-batch:
+    image: jdkendall/bankaudit-batch-default:1.0.0-SNAPSHOT
+    hostname: bankaudit-batch-0
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASS}
+      - OTEL_ENDPOINT=http://apm-server:8200
+      - OTEL_HEADERS=Authorization=Bearer ${APM_SERVER_TOKEN}
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=12201
+      - AUDIT_DB_URL=postgresql://postgres:5432/bankaudit
+      - AUDIT_DB_USER=${POSTGRES_USER}
+      - AUDIT_DB_PASS=${POSTGRES_PASS}
+      - PARSE_DIR_PATH=/mnt/mft
+      - PROCESSOR_ID=0
+    volumes:
+      - ./batch-mft:/mnt/mft
+    networks:
+      - elasticnet
+
+networks:
+  elasticnet:
+    external:
+      name: iac_elasticnet
+
+volumes:
+  postgres-data:
+    driver: local

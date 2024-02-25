@@ -1,0 +1,16 @@
+elastic:
+  apm:
+    active: true
+    serverUrl: "http://apm-server:8200"
+    secretToken: ${ELASTIC_APM_SECRET_TOKEN}
+server.host: "0.0.0.0"
+telemetry.enabled: "false"
+
+# Disable the Fleet agent ID verification pipeline,
+# which sets Fleet-specific fields that we don't want.
+xpack.fleet.agentIdVerificationEnabled: false
+
+# Install the APM integration package.
+xpack.fleet.packages:
+  - name: apm
+    version: latest

@@ -1,0 +1,56 @@
+mp:
+  messaging:
+    outgoing:
+      pending:
+        connector: smallrye-rabbitmq
+quarkus:
+  application:
+    name: bankaudit-api-${PROCESSOR_ID:default}
+  datasource:
+    db-kind: postgresql
+    jdbc:
+      telemetry:
+        enabled: true
+    password: ${AUDIT_DB_PASS}
+    reactive:
+      url: ${AUDIT_DB_URL}
+    username: ${AUDIT_DB_USER}
+  log:
+    console:
+      format: '%d{HH:mm:ss} %-5p traceId=%X{traceId}, parentId=%X{parentId},
+                spanId=%X{spanId}, sampled=%X{sampled} [%c{2.}] (%t) %s%e%n'
+    handler:
+      gelf:
+        additional-field:
+          metadata_dataset:
+            value: "apm.app.bankaudit_api_${PROCESSOR_ID:default}"
+            type: String
+          metadata_namespace:
+            value: "default"
+            type: String
+        enabled: true
+        host: ${LOGSTASH_HOST}
+        include-full-mdc: true
+        level: INFO
+        origin-host: bankaudit-api-${PROCESSOR_ID:default}
+        port: ${LOGSTASH_PORT}
+    level: INFO
+  micrometer:
+    export:
+      otlp:
+        url: ${OTEL_ENDPOINT}
+  otel:
+    exporter:
+      otlp:
+        traces:
+          endpoint: ${OTEL_ENDPOINT}
+          headers: ${OTEL_HEADERS}
+    resource:
+      attributes: service.name=bankaudit-api-${PROCESSOR_ID:default},service.namespace=com.jdkendall.bankaudit,service.instance.id=${PROCESSOR_ID:default},service.version=0.1-SNAPSHOT
+    traces:
+      sampler: traceidratio
+      sampler.arg: 1.0
+rabbitmq-host: ${RABBITMQ_HOST}
+rabbitmq-password: ${RABBITMQ_PASS}
+rabbitmq-port: ${RABBITMQ_PORT}
+rabbitmq-username: ${RABBITMQ_USER}
