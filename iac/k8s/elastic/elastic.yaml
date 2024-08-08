@@ -1,0 +1,31 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elastic
+spec:
+  version: 8.15.0    
+  nodeSets:
+  - name: default
+    count: 1
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: topolvm-provisioner    
+    config:
+      node.store.allow_mmap: false
+  http:
+    service:
+      spec:
+        type: NodePort
+        ports:
+         - name: https
+           nodePort: 31111
+           port: 9200
+           protocol: TCP
+           targetPort: 9200

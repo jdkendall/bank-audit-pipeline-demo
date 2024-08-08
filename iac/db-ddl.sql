@@ -1,4 +1,4 @@
-create table public.transactions
+create table if not exists transactions
 (
     id        integer generated always as identity,
     uuid      uuid      not null,
@@ -6,10 +6,7 @@ create table public.transactions
     timestamp timestamp not null
 );
 
-alter table public.transactions
-    owner to postgresuser;
-
-create table public.audits
+create table if not exists audits
 (
     id              integer generated always as identity,
     uuid            uuid      not null,
@@ -17,7 +14,3 @@ create table public.audits
     flagged         boolean   not null,
     audit_timestamp timestamp not null
 );
-
-alter table public.audits
-    owner to postgresuser;
-

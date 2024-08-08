@@ -1,0 +1,183 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bankaudit-processor
+spec:
+  serviceName: baunkaudit-processor
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bankaudit-processor
+  template:
+    metadata:
+      labels:
+        app: bankaudit-processor
+    spec:          
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: bankaudit-processor
+          image: jdkendall/bankaudit-processor:latest
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SERVICE_BINDING_ROOT
+              value: /bindings
+            - name: RABBITMQ_USER
+              value: guest
+            - name: RABBITMQ_PASS
+              value: guest
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: OTEL_ENDPOINT
+              value: https://apm-server-apm-http.control-bus:8200
+            - name: OTEL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apm-server-apm-token
+                  key: secret-token
+            - name: AUDIT_DB_URL
+              value: postgresql://postgres:5432/bankaudit
+          envFrom:
+            - configMapRef:
+                name: env-config
+          volumeMounts:
+            - name: ca-cert-binding-volume
+              mountPath: /bindings/ca-certificates
+              readOnly: true
+      volumes:
+        - name: ca-cert-binding-volume
+          secret:
+            secretName: ca-cert-binding
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bankaudit-api
+spec:
+  serviceName: baunkaudit-api
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bankaudit-api
+  template:
+    metadata:
+      labels:
+        app: bankaudit-api
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: bankaudit-api
+          image: jdkendall/bankaudit-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SERVICE_BINDING_ROOT
+              value: /bindings
+            - name: RABBITMQ_USER
+              value: guest
+            - name: RABBITMQ_PASS
+              value: guest
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: OTEL_ENDPOINT
+              value: https://apm-server-apm-http.control-bus:8200
+            - name: OTEL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apm-server-apm-token
+                  key: secret-token
+            - name: AUDIT_DB_URL
+              value: postgresql://postgres:5432/bankaudit
+          envFrom:
+            - configMapRef:
+                name: env-config
+          volumeMounts:
+            - name: ca-cert-binding-volume
+              mountPath: /bindings/ca-certificates
+              readOnly: true
+      volumes:
+        - name: ca-cert-binding-volume
+          secret:
+            secretName: ca-cert-binding
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bankaudit-api
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 31116
+  selector:
+    app: bankaudit-api
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bankaudit-batch
+spec:
+  serviceName: baunkaudit-batch
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bankaudit-batch
+  template:
+    metadata:
+      labels:
+        app: bankaudit-batch
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: bankaudit-batch
+          image: jdkendall/bankaudit-batch:latest
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SERVICE_BINDING_ROOT
+              value: /bindings
+            - name: RABBITMQ_USER
+              value: guest
+            - name: RABBITMQ_PASS
+              value: guest
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: OTEL_ENDPOINT
+              value: https://apm-server-apm-http.control-bus:8200
+            - name: OTEL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apm-server-apm-token
+                  key: secret-token
+            - name: AUDIT_DB_URL
+              value: postgresql://postgres:5432/bankaudit
+          envFrom:
+            - configMapRef:
+                name: env-config
+          volumeMounts:
+            - name: ca-cert-binding-volume
+              mountPath: /bindings/ca-certificates
+              readOnly: true
+      volumes:
+        - name: ca-cert-binding-volume
+          secret:
+            secretName: ca-cert-binding

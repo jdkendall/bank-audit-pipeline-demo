@@ -1,24 +1,30 @@
 package com.jdkendall.bankaudit.processor.services;
 
+
 import com.jdkendall.bankaudit.processor.domain.ProcessedAudit;
 import com.jdkendall.bankaudit.processor.domain.SenderType;
-import io.vertx.mutiny.sqlclient.Tuple;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
+import org.springframework.stereotype.Service;
 
-import java.util.UUID;
+import javax.sql.DataSource;
+import java.sql.SQLException;
 
-@ApplicationScoped
+@Service
 public class DBService {
-    @Inject
-    io.vertx.mutiny.pgclient.PgPool client;
+    private final DataSource client;
 
-    public void save(SenderType sender, ProcessedAudit audit) {
-        Tuple params = Tuple.of(audit.uuid().toString(), sender.name(), audit.flagged());
-        client.preparedQuery("INSERT INTO audits (uuid, source, flagged, audit_timestamp) " +
-                                 "VALUES ($1, $2, $3, CURRENT_TIMESTAMP)")
-                .execute(params)
-                .await()
-                .indefinitely();
+    public DBService(DataSource client) {
+        this.client = client;
+    }
+
+    public void save(SenderType sender, ProcessedAudit audit) throws SQLException {
+        try (var conn = client.getConnection();
+             var stmt = conn.prepareStatement(
+                "INSERT INTO audits (uuid, source, flagged, audit_timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)"
+        )) {
+            stmt.setObject(1, audit.uuid());
+            stmt.setString(2, sender.name());
+            stmt.setBoolean(3, audit.flagged());
+            stmt.execute();
+        }
     }
 }

@@ -1,79 +1,80 @@
 package com.jdkendall.bankaudit.processor.mq;
 
-import com.jdkendall.bankaudit.processor.domain.PendingAudit;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jdkendall.bankaudit.domain.AuditRequest;
 import com.jdkendall.bankaudit.processor.domain.ProcessedAudit;
 import com.jdkendall.bankaudit.processor.domain.SenderType;
 import com.jdkendall.bankaudit.processor.services.AuditService;
-import io.smallrye.common.annotation.Blocking;
-import io.smallrye.reactive.messaging.rabbitmq.IncomingRabbitMQMetadata;
-import io.vertx.core.json.JsonObject;
-import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.eclipse.microprofile.reactive.messaging.Message;
-import org.jboss.logging.Logger;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.stereotype.Component;
 
-import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
+import java.io.IOException;
+import java.sql.SQLException;
 
-@Named
+@Component
 public class MessageQueueProcessor {
-    private static final Logger LOG = Logger.getLogger(MessageQueueProcessor.class);
 
-    @Inject
-    @Channel("processedBatch")
-    Emitter<ProcessedAudit> processedAuditBatchEmitter;
+    private static final Logger LOG = LoggerFactory.getLogger(MessageQueueProcessor.class);
 
-    @Inject
-    @Channel("processedApi")
-    Emitter<ProcessedAudit> processedAuditApiEmitter;
+    private final RabbitTemplate rabbitTemplate;
+    private final AuditService auditService;
 
-    @Inject
-    AuditService auditService;
+    @Value("${spring.rabbitmq.exchange}")
+    private String processedExchange;
+
+    @Value("${spring.rabbitmq.queue.processed.batch}")
+    private String processedBatchRoutingKey;
+
+    @Value("${spring.rabbitmq.queue.processed.api}")
+    private String processedApiRoutingKey;
+
+    private final ObjectMapper objectMapper;
 
 
-    @Blocking
-    @Incoming("pending")
-    public CompletionStage<Void> consume(Message<JsonObject> auditMessage) {
-        IncomingRabbitMQMetadata metadata = auditMessage.getMetadata(IncomingRabbitMQMetadata.class).orElse(null);
-        PendingAudit payload = auditMessage.getPayload().mapTo(PendingAudit.class);
-        if (metadata != null) {
-            String headers = metadata.getHeaders().entrySet().stream()
-                    .map(e -> "%s => %s".formatted(e.getKey(), e.getValue()))
-                    .collect(Collectors.joining("\n"));
-            LOG.info("Received message: %s with headers:\n%s".formatted(auditMessage.getPayload(), headers));
-
-            SenderType sender = parseSender(metadata);
-
-            ProcessedAudit processedAudit = this.auditService.audit(sender, payload);
-
-            switch (sender) {
-                case BATCH:
-                    processedAuditBatchEmitter.send(processedAudit);
-                    break;
-                case API:
-                    processedAuditApiEmitter.send(processedAudit);
-                    break;
-                default:
-                    LOG.info("Unknown sender type: " + sender);
-            }
-        }
-
-        return auditMessage.ack();
+    public MessageQueueProcessor(RabbitTemplate rabbitTemplate, AuditService auditService, ObjectMapper objectMapper) {
+        this.rabbitTemplate = rabbitTemplate;
+        this.auditService = auditService;
+        this.objectMapper = objectMapper;
     }
 
-    private SenderType parseSender(IncomingRabbitMQMetadata metadata) {
-        String senderHeader = metadata.getHeader("sender", String.class).orElse("");
+    @WithSpan
+    @RabbitListener(queues = "${spring.rabbitmq.queue.pending.all}")
+    public void consume(Message auditMessage, @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey,
+                        @Header("sender") String senderHeader) throws IOException, SQLException {
+        AuditRequest payload = objectMapper.readValue(auditMessage.getBody(), AuditRequest.class);
+        SenderType sender = parseSender(senderHeader);
+
+        LOG.info("Queue [{}]: Received message with UUID: [{}] and sender: [{}]", routingKey, payload.uuid(), sender);
+
+        ProcessedAudit processedAudit = this.auditService.audit(sender, payload);
+
+        switch (sender) {
+            case BATCH:
+                rabbitTemplate.convertAndSend(processedExchange, processedBatchRoutingKey, objectMapper.writeValueAsString(processedAudit));
+                break;
+            case API:
+                rabbitTemplate.convertAndSend(processedExchange, processedApiRoutingKey, objectMapper.writeValueAsString(processedAudit));
+                break;
+            default:
+                LOG.info("Unknown sender type: {}", sender);
+        }
+    }
+
+    private SenderType parseSender(String senderHeader) {
         try {
             return SenderType.valueOf(senderHeader.toUpperCase());
         } catch (IllegalArgumentException e) {
-            // Proper architecture would have a queue for anomalous messages so nothing is lost,
-            // but this is a toy demo, so we're going to panic throw and discard
-            // the message instead. :^)
-
-            LOG.info("Unknown sender type! " + senderHeader);
+            LOG.info("Unknown sender type! {}", senderHeader);
             throw e;
         }
     }

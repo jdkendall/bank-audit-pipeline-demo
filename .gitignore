@@ -78,3 +78,9 @@ nb-configuration.xml
 # Plugin directory
 .quarkus/cli/plugins/
 
+iac/k8s/expose.sh
+iac/k8s/shell-demo.yaml
+iac/k8s/sheller.sh
+iac/k8s/registry-creds/htpasswd
+iac/k8s/registry-creds/registry-pass.txt
+iac/k8s/registry-creds/registry-user.txt
