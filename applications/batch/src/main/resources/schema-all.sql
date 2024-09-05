@@ -110,7 +110,8 @@ create table if not exists audits
 
 -- Insert 100 different account/routing number combinations
 insert into accounts (account_num, routing_num)
-values ('631489275', '987654321'),
+values ('123456789', '987654321'),
+       ('631489275', '987654321'),
        ('742590386', '987654321'),
        ('853601497', '987654321'),
        ('853601497', '123456789'),

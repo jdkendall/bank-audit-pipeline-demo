@@ -29,7 +29,6 @@ public class BatchFileReader extends FlatFileItemReader<ParsedLine> {
     }
 
     @Override
-    @WithSpan
     public ParsedLine read() throws Exception {
         return super.read();
     }

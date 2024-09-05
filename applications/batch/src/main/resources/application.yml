@@ -87,6 +87,9 @@ otel:
       experimental-span-attributes: true
 
 management:
+  metrics:
+    enable:
+      jvm: true
   tracing:
     sampling:
       probability: 1.0

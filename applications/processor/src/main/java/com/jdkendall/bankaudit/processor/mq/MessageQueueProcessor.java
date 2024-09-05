@@ -59,14 +59,8 @@ public class MessageQueueProcessor {
         ProcessedAudit processedAudit = this.auditService.audit(sender, payload);
 
         switch (sender) {
-            case BATCH:
-                rabbitTemplate.convertAndSend(processedExchange, processedBatchRoutingKey, objectMapper.writeValueAsString(processedAudit));
-                break;
-            case API:
-                rabbitTemplate.convertAndSend(processedExchange, processedApiRoutingKey, objectMapper.writeValueAsString(processedAudit));
-                break;
-            default:
-                LOG.info("Unknown sender type: {}", sender);
+            case BATCH -> rabbitTemplate.convertAndSend(processedExchange, processedBatchRoutingKey, objectMapper.writeValueAsString(processedAudit));
+            case API -> rabbitTemplate.convertAndSend(processedExchange, processedApiRoutingKey, objectMapper.writeValueAsString(processedAudit));
         }
     }
 

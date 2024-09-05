@@ -2,6 +2,10 @@ package com.jdkendall.bankaudit.batch.services;
 
 import com.jdkendall.bankaudit.domain.Account;
 import com.jdkendall.bankaudit.domain.AuditRequest;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,11 +27,19 @@ public class TransactionTrackingService {
     }
 
     @WithSpan
-    public void execute(String filename, List<? extends AuditRequest> linesToAudit) throws Exception {
+    public void execute(@SpanAttribute String filename, List<? extends AuditRequest> linesToAudit) throws Exception {
         try (var conn = client.getConnection()) {
             try (var stmt = conn.prepareStatement(
                     "insert into transactions (uuid, timestamp, total, src_account, dst_account) values (?, ?, ?, ?, ?)")) {
                 for (var line : linesToAudit) {
+                    Span.current().addEvent("Saving transaction", Attributes.of(
+                            AttributeKey.stringKey("filename"),
+                            filename,
+                            AttributeKey.stringKey("src-account"),
+                            line.sourceAccount().id(),
+                            AttributeKey.stringKey("tgt-account"),
+                            line.targetAccount().id()
+                    ));
                     Integer srcAccountId, tgtAccountId;
                     try(var qry = conn.prepareStatement("select id from accounts where account_num = ? and routing_num = ?")) {
                         srcAccountId = getAccountId(qry, line.sourceAccount());

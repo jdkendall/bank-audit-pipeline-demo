@@ -1,5 +1,6 @@
 package com.jdkendall.bankaudit.api.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jdkendall.bankaudit.api.exceptions.ApiValidationException;
 import com.jdkendall.bankaudit.api.mq.MessageQueueSender;
 import com.jdkendall.bankaudit.api.services.TransactionService;
@@ -35,7 +36,7 @@ public class TransactionsController {
     // POST route which takes application/json and returns a 204
     @WithSpan
     @PostMapping(path = "/transactions", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Void> submitTransaction(@RequestBody TransactionRequest request) throws SQLException {
+    public ResponseEntity<Void> submitTransaction(@RequestBody TransactionRequest request) throws SQLException, JsonProcessingException {
         var errors = request.validate();
         if (!errors.isEmpty()) {
             throw new ApiValidationException(errors);

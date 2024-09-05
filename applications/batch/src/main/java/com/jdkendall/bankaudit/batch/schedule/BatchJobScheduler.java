@@ -33,7 +33,6 @@ public class BatchJobScheduler {
         this.fileDataStore = fileDataStore;
     }
 
-    @WithSpan
     @Scheduled(fixedRateString = "${scan.rate:3600000}")
     public void triggerBatchJob() throws IOException {
         LOG.info("Checking for new files");
@@ -46,7 +45,6 @@ public class BatchJobScheduler {
 
     }
 
-    @WithSpan
     private void startFileJob(Resource file) throws IOException {
         try {
             JobParametersBuilder jobParams = new JobParametersBuilder();
